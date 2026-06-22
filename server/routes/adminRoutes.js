@@ -13,7 +13,7 @@ import {
   parseDateKey,
 } from "../utils/availability.js";
 import { getRevenueStats, getRevenueSummary, childAgeLabel, daysSince } from "../utils/revenue.js";
-import { planLabels } from "../../shared/content.js";
+import { planLabels, slotTimes, mergeSlotTimes, formatSlotTime } from "../../shared/content.js";
 import {
   sendAppointmentConfirmedEmail,
   sendSessionNotePublishedEmail,
@@ -272,12 +272,17 @@ router.get("/agenda/week", async (req, res) => {
     });
   }
 
+  const appointmentTimes = appointments.map((a) => formatSlotTime(a.scheduledAt));
+  const configuredTimes = Object.values(weeklySlots).flat();
+  const allSlotTimes = mergeSlotTimes(configuredTimes, appointmentTimes);
+  if (!allSlotTimes.length) allSlotTimes.push(...slotTimes.filter((t) => ["09:00", "10:30", "12:00", "16:00", "17:30"].includes(t)));
+
   res.json({
     weekStart: parseDateKey(weekStart),
     weekEnd: parseDateKey(weekEnd),
     days,
     appointments,
-    slotTimes: [...new Set(Object.values(weeklySlots).flat())].sort(),
+    slotTimes: allSlotTimes,
   });
 });
 

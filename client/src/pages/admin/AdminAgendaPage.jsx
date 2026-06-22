@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import { PageHeader } from "../../components/AppShell";
-import { slotTimes } from "../../../../shared/content.js";
+import { slotTimes, formatSlotTime } from "../../../../shared/content.js";
 
 const DAYS = [
   { key: "1", label: "Lunes" },
@@ -66,7 +66,9 @@ export default function AdminAgendaPage() {
     loadWeek(weekStart);
   };
 
-  const times = weekData?.slotTimes?.length ? weekData.slotTimes : slotTimes;
+  const times = weekData?.slotTimes?.length
+    ? weekData.slotTimes
+    : slotTimes;
   const weekDays = weekData?.days || [];
 
   const aptAt = (dateKey, time) => {
@@ -74,8 +76,7 @@ export default function AdminAgendaPage() {
     return weekData.appointments.find((a) => {
       const d = new Date(a.scheduledAt);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      const t = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-      return key === dateKey && t === time;
+      return key === dateKey && formatSlotTime(d) === time;
     });
   };
 

@@ -65,7 +65,7 @@ export default function RegisterPage() {
         birthDate: form.birthDate || undefined,
         interestAreas: form.interestAreas,
       });
-      setStep(2);
+      navigate("/dashboard", { replace: true, state: { profileSaved: true, welcome: true, childName: form.childName } });
     } catch (err) {
       setError(err.message);
     } finally {

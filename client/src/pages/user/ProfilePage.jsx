@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { PageHeader } from "../../components/AppShell";
 import { quotes, services } from "../../../../shared/content.js";
 
 export default function ProfilePage() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     childName: "",
     birthDate: "",
@@ -58,7 +60,7 @@ export default function ProfilePage() {
     try {
       await api.saveChildProfile(form);
       await api.updateAccount(account);
-      setMsg("Perfil guardado correctamente");
+      navigate("/dashboard", { replace: true, state: { profileSaved: true, childName: form.childName } });
     } catch (err) {
       setError(err.message);
     } finally {

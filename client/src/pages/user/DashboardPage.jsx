@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { api } from "../../api/client";
 import { PageHeader } from "../../components/AppShell";
 import { formatDateTime } from "../../components/Layout";
@@ -10,6 +10,8 @@ const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", 
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const location = useLocation();
+  const [profileMsg, setProfileMsg] = useState("");
   const [upcoming, setUpcoming] = useState(null);
   const [lastNote, setLastNote] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -18,6 +20,17 @@ export default function DashboardPage() {
   const now = new Date();
   const dateLabel = `${weekdays[now.getDay()]} · ${now.getDate()} de ${months[now.getMonth()]}`;
   const firstName = user?.name?.split(" ")[0] || "familia";
+
+  useEffect(() => {
+    if (location.state?.profileSaved) {
+      setProfileMsg(
+        location.state.welcome
+          ? `¡Todo listo${location.state.childName ? ` para ${location.state.childName}` : ""}! Tu espacio está preparado.`
+          : `Perfil actualizado${location.state.childName ? ` — ${location.state.childName}` : ""} correctamente.`
+      );
+      window.history.replaceState({}, "");
+    }
+  }, [location.state]);
 
   useEffect(() => {
     Promise.all([
@@ -41,6 +54,8 @@ export default function DashboardPage() {
           <Link to="/citas/nueva" className="btn btn-primary btn-sm">+ Reservar asesoría</Link>
         }
       />
+
+      {profileMsg && <div className="alert alert-success" style={{ marginBottom: 20 }}>{profileMsg}</div>}
 
       {!profile?.interestAreas?.length && (
         <div className="alert alert-warm" style={{ marginBottom: 20 }}>
