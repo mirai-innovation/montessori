@@ -12,7 +12,7 @@ import {
   getOrCreateAvailability,
   parseDateKey,
 } from "../utils/availability.js";
-import { getRevenueStats, childAgeLabel, daysSince } from "../utils/revenue.js";
+import { getRevenueStats, getRevenueSummary, childAgeLabel, daysSince } from "../utils/revenue.js";
 import { planLabels } from "../../shared/content.js";
 import {
   sendAppointmentConfirmedEmail,
@@ -21,6 +21,149 @@ import {
 
 const router = express.Router();
 router.use(authMiddleware, adminMiddleware);
+
+function todayRange() {
+  const now = new Date();
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(now);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+}
+
+function weekRange() {
+  const now = new Date();
+  const start = new Date(now);
+  start.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+}
+
+/** Panel general: una sola respuesta optimizada */
+router.get("/dashboard", async (_req, res) => {
+  try {
+    const { start: startOfToday, end: endOfToday } = todayRange();
+    const { start: startOfWeek, end: endOfWeek } = weekRange();
+    const inactiveCutoff = new Date();
+    inactiveCutoff.setDate(inactiveCutoff.getDate() - 21);
+
+    const [
+      pending,
+      todayCount,
+      weekCount,
+      activeFamilies,
+      totalAppointments,
+      cancelled,
+      revenue,
+      todayAppointments,
+      atRiskFromApts,
+      inactiveNewUsers,
+    ] = await Promise.all([
+      Appointment.countDocuments({ status: "solicitada" }),
+      Appointment.countDocuments({
+        scheduledAt: { $gte: startOfToday, $lte: endOfToday },
+        status: { $in: ["solicitada", "confirmada"] },
+      }),
+      Appointment.countDocuments({
+        scheduledAt: { $gte: startOfWeek, $lte: endOfWeek },
+        status: { $in: ["solicitada", "confirmada", "completada"] },
+      }),
+      User.countDocuments({ role: "user", isActive: true }),
+      Appointment.countDocuments(),
+      Appointment.countDocuments({ status: "cancelada" }),
+      getRevenueSummary(),
+      Appointment.find({
+        scheduledAt: { $gte: startOfToday, $lte: endOfToday },
+        status: { $in: ["solicitada", "confirmada"] },
+      })
+        .populate("userId", "name")
+        .sort({ scheduledAt: 1 })
+        .limit(4)
+        .lean(),
+      Appointment.aggregate([
+        { $sort: { scheduledAt: -1 } },
+        { $group: { _id: "$userId", lastAt: { $first: "$scheduledAt" } } },
+        { $match: { lastAt: { $lte: inactiveCutoff } } },
+        {
+          $lookup: {
+            from: "users",
+            localField: "_id",
+            foreignField: "_id",
+            as: "user",
+          },
+        },
+        { $unwind: "$user" },
+        { $match: { "user.role": "user", "user.isActive": true } },
+        {
+          $project: {
+            _id: "$user._id",
+            name: "$user.name",
+            lastAt: 1,
+          },
+        },
+        { $limit: 5 },
+      ]),
+      User.find({
+        role: "user",
+        isActive: true,
+        createdAt: { $lte: inactiveCutoff },
+      })
+        .select("name createdAt")
+        .limit(20)
+        .lean(),
+    ]);
+
+    const aptIds = new Set(atRiskFromApts.map((r) => r._id.toString()));
+
+    const newUserAtRisk = [];
+    if (inactiveNewUsers.length) {
+      const neverBooked = await Appointment.distinct("userId", {
+        userId: { $in: inactiveNewUsers.map((u) => u._id) },
+      });
+      const bookedSet = new Set(neverBooked.map((id) => id.toString()));
+      for (const u of inactiveNewUsers) {
+        if (!bookedSet.has(u._id.toString()) && !aptIds.has(u._id.toString())) {
+          newUserAtRisk.push({
+            _id: u._id,
+            name: u.name,
+            inactiveDays: daysSince(u.createdAt),
+          });
+        }
+      }
+    }
+
+    const atRisk = [
+      ...atRiskFromApts.map((r) => ({
+        _id: r._id,
+        name: r.name,
+        inactiveDays: daysSince(r.lastAt),
+      })),
+      ...newUserAtRisk,
+    ]
+      .sort((a, b) => b.inactiveDays - a.inactiveDays)
+      .slice(0, 3);
+
+    res.json({
+      stats: {
+        pending,
+        todayCount,
+        weekCount,
+        activeFamilies,
+        cancelRate: totalAppointments ? Math.round((cancelled / totalAppointments) * 100) : 0,
+        monthRevenue: revenue.monthRevenue,
+        monthGrowth: revenue.monthGrowth,
+      },
+      todayAppointments,
+      atRisk,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error al cargar el panel" });
+  }
+});
 
 router.get("/stats", async (_req, res) => {
   const now = new Date();
@@ -35,7 +178,7 @@ router.get("/stats", async (_req, res) => {
   endOfWeek.setDate(startOfWeek.getDate() + 6);
   endOfWeek.setHours(23, 59, 59, 999);
 
-  const [pending, todayCount, weekCount, activeFamilies, totalAppointments, cancelled] = await Promise.all([
+  const [pending, todayCount, weekCount, activeFamilies, totalAppointments, cancelled, revenue, serviceStats] = await Promise.all([
     Appointment.countDocuments({ status: "solicitada" }),
     Appointment.countDocuments({
       scheduledAt: { $gte: startOfToday, $lte: endOfToday },
@@ -48,15 +191,13 @@ router.get("/stats", async (_req, res) => {
     User.countDocuments({ role: "user", isActive: true }),
     Appointment.countDocuments(),
     Appointment.countDocuments({ status: "cancelada" }),
+    getRevenueSummary(),
+    Appointment.aggregate([
+      { $group: { _id: "$serviceType", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 5 },
+    ]),
   ]);
-
-  const serviceStats = await Appointment.aggregate([
-    { $group: { _id: "$serviceType", count: { $sum: 1 } } },
-    { $sort: { count: -1 } },
-    { $limit: 5 },
-  ]);
-
-  const revenue = await getRevenueStats();
 
   res.json({
     stats: {

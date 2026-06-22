@@ -15,23 +15,13 @@ export default function AdminDashboardPage() {
   const dateLabel = `${weekdays[now.getDay()]} · ${now.getDate()} de ${months[now.getMonth()]}`;
 
   useEffect(() => {
-    Promise.all([
-      api.adminStats(),
-      api.adminAppointments(),
-      api.adminUsers(),
-    ]).then(([s, a, u]) => {
-      setStats(s.stats);
-      setAtRisk((u.users || []).filter((x) => x.atRisk).slice(0, 3));
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(today.getDate() + 1);
-      const todayApts = a.appointments.filter((apt) => {
-        const d = new Date(apt.scheduledAt);
-        return d >= today && d < tomorrow && ["solicitada", "confirmada"].includes(apt.status);
-      });
-      setAppointments(todayApts.slice(0, 4));
-    }).catch(() => {});
+    api.adminDashboard()
+      .then((data) => {
+        setStats(data.stats);
+        setAppointments(data.todayAppointments || []);
+        setAtRisk(data.atRisk || []);
+      })
+      .catch(() => {});
   }, []);
 
   if (!stats) return <div className="panel">Cargando...</div>;

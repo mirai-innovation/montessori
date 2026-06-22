@@ -45,6 +45,7 @@ export const api = {
   getSessionNote: (id) => request(`/session-notes/${id}`),
   getContent: () => request("/content/services"),
   adminStats: () => request("/admin/stats"),
+  adminDashboard: () => request("/admin/dashboard"),
   adminRevenue: () => request("/admin/revenue"),
   adminWeekAgenda: (start) => request(`/admin/agenda/week${start ? `?start=${start}` : ""}`),
   adminAppointments: (status) => request(`/admin/appointments${status ? `?status=${status}` : ""}`),

@@ -8,14 +8,14 @@ function monthEnd(d = new Date()) {
   return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
 }
 
-export async function getRevenueStats() {
+export async function getRevenueSummary() {
   const now = new Date();
   const thisStart = monthStart(now);
   const thisEnd = monthEnd(now);
   const prevStart = monthStart(new Date(now.getFullYear(), now.getMonth() - 1, 1));
   const prevEnd = monthEnd(new Date(now.getFullYear(), now.getMonth() - 1, 1));
 
-  const [monthTotal, prevTotal, pending, subscriptionCount, chartData] = await Promise.all([
+  const [monthTotal, prevTotal] = await Promise.all([
     Payment.aggregate([
       { $match: { status: "completed", paidAt: { $gte: thisStart, $lte: thisEnd } } },
       { $group: { _id: null, total: { $sum: "$amount" } } },
@@ -24,6 +24,27 @@ export async function getRevenueStats() {
       { $match: { status: "completed", paidAt: { $gte: prevStart, $lte: prevEnd } } },
       { $group: { _id: null, total: { $sum: "$amount" } } },
     ]),
+  ]);
+
+  const monthRevenue = monthTotal[0]?.total || 0;
+  const prevRevenue = prevTotal[0]?.total || 0;
+  const growth = prevRevenue
+    ? Math.round(((monthRevenue - prevRevenue) / prevRevenue) * 100)
+    : monthRevenue > 0 ? 100 : 0;
+
+  return { monthRevenue, monthGrowth: growth };
+}
+
+export async function getRevenueStats() {
+  const now = new Date();
+  const thisStart = monthStart(now);
+  const thisEnd = monthEnd(now);
+  const prevStart = monthStart(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+  const prevEnd = monthEnd(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+  const chartFrom = monthStart(new Date(now.getFullYear(), now.getMonth() - 5, 1));
+
+  const [summary, pending, subscriptionCount, typeTotals, chartRows] = await Promise.all([
+    getRevenueSummary(),
     Payment.aggregate([
       { $match: { status: "pending" } },
       { $group: { _id: null, total: { $sum: "$amount" }, count: { $sum: 1 } } },
@@ -33,79 +54,72 @@ export async function getRevenueStats() {
       status: "completed",
       paidAt: { $gte: thisStart, $lte: thisEnd },
     }),
-    buildChart(6),
-  ]);
-
-  const monthRevenue = monthTotal[0]?.total || 0;
-  const prevRevenue = prevTotal[0]?.total || 0;
-  const growth = prevRevenue
-    ? Math.round(((monthRevenue - prevRevenue) / prevRevenue) * 100)
-    : monthRevenue > 0 ? 100 : 0;
-
-  const oneTimeMonth = await Payment.aggregate([
-    {
-      $match: {
-        status: "completed",
-        type: "one_time",
-        paidAt: { $gte: thisStart, $lte: thisEnd },
+    Payment.aggregate([
+      {
+        $match: {
+          status: "completed",
+          paidAt: { $gte: thisStart, $lte: thisEnd },
+        },
       },
-    },
-    { $group: { _id: null, total: { $sum: "$amount" } } },
-  ]);
-
-  const recurringMonth = await Payment.aggregate([
-    {
-      $match: {
-        status: "completed",
-        type: "subscription",
-        paidAt: { $gte: thisStart, $lte: thisEnd },
-      },
-    },
-    { $group: { _id: null, total: { $sum: "$amount" } } },
-  ]);
-
-  return {
-    monthRevenue,
-    monthGrowth: growth,
-    mrr: recurringMonth[0]?.total || 0,
-    oneTimeMonth: oneTimeMonth[0]?.total || 0,
-    pendingAmount: pending[0]?.total || 0,
-    pendingCount: pending[0]?.count || 0,
-    subscriptionCount: subscriptionCount.length,
-    chart: chartData,
-  };
-}
-
-async function buildChart(months) {
-  const labels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-  const now = new Date();
-  const result = [];
-
-  for (let i = months - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const start = monthStart(d);
-    const end = monthEnd(d);
-    const rows = await Payment.aggregate([
-      { $match: { status: "completed", paidAt: { $gte: start, $lte: end } } },
+      { $group: { _id: "$type", total: { $sum: "$amount" } } },
+    ]),
+    Payment.aggregate([
+      { $match: { status: "completed", paidAt: { $gte: chartFrom, $lte: thisEnd } } },
       {
         $group: {
-          _id: "$type",
+          _id: {
+            y: { $year: "$paidAt" },
+            m: { $month: "$paidAt" },
+            type: "$type",
+          },
           total: { $sum: "$amount" },
         },
       },
-    ]);
-    let recurring = 0;
-    let oneTime = 0;
-    for (const r of rows) {
-      if (r._id === "subscription") recurring = r.total;
-      else oneTime += r.total;
-    }
+    ]),
+  ]);
+
+  let oneTimeMonth = 0;
+  let recurringMonth = 0;
+  for (const row of typeTotals) {
+    if (row._id === "subscription") recurringMonth = row.total;
+    else oneTimeMonth += row.total;
+  }
+
+  return {
+    monthRevenue: summary.monthRevenue,
+    monthGrowth: summary.monthGrowth,
+    mrr: recurringMonth,
+    oneTimeMonth,
+    pendingAmount: pending[0]?.total || 0,
+    pendingCount: pending[0]?.count || 0,
+    subscriptionCount: subscriptionCount.length,
+    chart: buildChartFromRows(chartRows, 6),
+  };
+}
+
+function buildChartFromRows(rows, months) {
+  const labels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  const now = new Date();
+  const byMonth = new Map();
+  for (const row of rows) {
+    const key = `${row._id.y}-${row._id.m}`;
+    if (!byMonth.has(key)) byMonth.set(key, { recurring: 0, oneTime: 0 });
+    const bucket = byMonth.get(key);
+    if (row._id.type === "subscription") bucket.recurring = row.total;
+    else bucket.oneTime += row.total;
+  }
+
+  const result = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
+    const bucket = byMonth.get(key) || { recurring: 0, oneTime: 0 };
     result.push({
       label: labels[d.getMonth()],
       year: d.getFullYear(),
-      recurring,
-      oneTime,
-      total: recurring + oneTime,
+      recurring: bucket.recurring,
+      oneTime: bucket.oneTime,
+      total: bucket.recurring + bucket.oneTime,
     });
   }
   return result;
