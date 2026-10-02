@@ -39,6 +39,7 @@ export function Header({ simple }) {
               <a href="/#sobre" onClick={() => setOpen(false)}>Sobre mí</a>
               <a href="/#asesorias" onClick={() => setOpen(false)}>Asesorías</a>
               <a href="/#ayuda" onClick={() => setOpen(false)}>Cómo te ayudo</a>
+              <a href="/#mi-camino" onClick={() => setOpen(false)}>Mi camino</a>
               <a href="/#formacion" onClick={() => setOpen(false)}>Formación</a>
             </>
           )}
@@ -88,6 +89,7 @@ export function Footer() {
             <a href="/#sobre">Sobre mí</a>
             <a href="/#asesorias">Asesorías</a>
             <a href="/#ayuda">Cómo te ayudo</a>
+            <a href="/#mi-camino">Mi camino</a>
             <a href="/como-funciona">Cómo funciona</a>
           </div>
           <div className="foot-col">

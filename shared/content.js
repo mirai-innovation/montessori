@@ -114,3 +114,61 @@ export const planLabels = {
   credit: "Crédito",
   request: "Solicitud",
 };
+
+/**
+ * "Mi camino": experiencias, congresos y formaciones de Adriana.
+ * Para publicar una nueva entrada basta con agregar un objeto aquí.
+ * - `published: false` la oculta del sitio (útil mientras faltan datos o fotos).
+ * - Las imágenes viven en client/public/assets/camino/. Si una imagen todavía no existe,
+ *   el sitio muestra un marcador visual en su lugar.
+ */
+export const journeyPosts = [
+  {
+    slug: "congreso-internacional-montessori-merida-2026",
+    published: true,
+    title: "De Japón a Mérida: mi primer Congreso Internacional Montessori",
+    date: "2026-05",
+    dateLabel: "Mayo 2026",
+    location: "Mérida, Yucatán, México",
+    tag: "Congreso",
+    cover: "/assets/camino/merida-portada.jpg",
+    coverAlt: "Adriana en el Congreso Internacional Montessori en Mérida",
+    excerpt:
+      "Viajé de Japón a México por este momento. En mayo asistí a mi primer Congreso Internacional Montessori y tuve la oportunidad de conocer y compartir un momento con Judi Orion.",
+    body: [
+      { p: "Viajé de Japón a México por este momento. 🇯🇵✈️🇲🇽" },
+      { p: "En mayo tuve la oportunidad de asistir en Mérida, Yucatán, a mi primer Congreso Internacional Montessori, un encuentro internacional que reúne a personas de distintas partes del mundo alrededor de una misma visión: acompañar el desarrollo humano desde Montessori." },
+      { p: "Y ahí tuve la oportunidad de conocer y compartir un momento con Judi Orion, una de las grandes referentes de Montessori a nivel internacional." },
+      { h: "¿Quién es Judi Orion?" },
+      { p: "Judi es Directora de Pedagogía de la Association Montessori Internationale (AMI), entrenadora, examinadora y consultora Montessori. Se formó en 3–6 y fue parte de la primera formación AMI de Asistentes a la Infancia 0–3 realizada en Roma. Durante décadas ha formado a generaciones de guías y entrenadores alrededor del mundo." },
+      { h: "Por qué fue tan especial" },
+      { p: "Para mí fue muy especial poder estar ahí. Estaba viviendo en Japón y decidí viajar hasta Mérida para asistir a este Congreso. Más allá de las horas de vuelo o de la distancia, sabía que quería vivirlo." },
+      { p: "Porque cuando algo realmente te importa, empiezas a entender que formarte también significa acercarte a las personas que han dedicado su vida a aquello que tú apenas estás comenzando a construir." },
+      { p: "Poder escucharla, conocerla y compartir aunque fueran unos minutos con ella fue uno de esos momentos que guardas." },
+      { h: "Mi camino con Montessori" },
+      { p: "Hace algunos años Montessori llegó a mi vida como mamá. Después decidí estudiarlo. Hoy sigo aprendiendo de personas que han dedicado prácticamente toda su trayectoria profesional a comprender y defender el desarrollo del niño." },
+      { p: "Y mientras estaba ahí pensé: qué increíble poder estar sentada frente a personas que ayudaron a construir el camino que hoy nosotros tenemos la oportunidad de continuar." },
+      { p: "Japón → Mérida. Mi primer Congreso Internacional Montessori. Y un recuerdo que definitivamente quería guardar aquí. 🤍" },
+    ],
+    gallery: [
+      { src: "/assets/camino/merida-judi-orion.jpg", alt: "Adriana con Judi Orion" },
+      { src: "/assets/camino/merida-escenario.jpg", alt: "Escenario del Congreso Internacional Montessori" },
+      { src: "/assets/camino/merida-recinto.jpg", alt: "Recinto del Congreso en Mérida" },
+    ],
+  },
+  {
+    // Pendiente: faltan nombre del evento, fecha, ciudad, recinto, ponente, tema, aprendizajes y fotos.
+    slug: "conferencia-japon",
+    published: false,
+    title: "Conferencia en Japón",
+    date: "",
+    dateLabel: "",
+    location: "Japón",
+    tag: "Conferencia",
+    cover: "/assets/camino/japon-portada.jpg",
+    coverAlt: "Adriana en una conferencia en Japón",
+    excerpt: "",
+    body: [],
+    gallery: [],
+  },
+];

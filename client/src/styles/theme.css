@@ -36,7 +36,8 @@ header{position:sticky;top:0;z-index:60;backdrop-filter:blur(10px);
 .brand b{font-weight:600}
 .brand span{display:block;font-family:var(--body);font-size:.62rem;letter-spacing:.24em;text-transform:uppercase;color:var(--sage-deep);margin-top:2px}
 .menu{display:flex;gap:2rem;align-items:center;font-size:.92rem;font-weight:500}
-.menu a{color:var(--muted);transition:.2s;position:relative}
+.menu a{color:var(--muted);transition:.2s;position:relative;white-space:nowrap}
+@media(max-width:1120px) and (min-width:981px){.menu{gap:1.3rem}}
 .menu a:hover{color:var(--sage-deep)}
 .menu .btn-primary,
 .menu .btn-primary:hover,
@@ -460,4 +461,56 @@ textarea.field-input:focus{outline:none;border-color:var(--sage)}
 @media(prefers-reduced-motion:reduce){
   .scr{animation:none}
   .auth-float-card{animation:none}
+}
+
+/* ABOUT — personal */
+#sobre .about-grid{align-items:start}
+#sobre .about-photo{position:sticky;top:110px}
+@media(max-width:980px){#sobre .about-photo{position:static}}
+.about-lead{font-family:var(--display);font-size:1.22rem;line-height:1.5;color:var(--ink)!important}
+.about-route{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:.45rem;margin-top:22px;
+  font-size:.8rem;font-weight:600;color:var(--sage-deep)}
+.about-route span{background:#fff;border:1px solid var(--line);border-radius:100px;padding:.35rem .8rem}
+.about-route i{font-style:normal;color:var(--clay)}
+.about-focus{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin:1.6rem 0;padding:22px;background:#fff;border:1px solid var(--line);border-radius:22px}
+.about-focus h3{font-size:1.05rem;font-weight:500;margin-bottom:.6rem}
+.about-focus p{font-size:.92rem;margin:0}
+.about-focus>div:last-child h3{color:#9a5f48}
+.about-quote{font-family:var(--display);font-style:italic;font-size:1.15rem;line-height:1.5;color:var(--sage-deep);
+  border-left:3px solid var(--clay);padding:.2rem 0 .2rem 1.1rem;margin:1.4rem 0}
+
+/* MI CAMINO */
+.journey-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:26px}
+.journey-card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:22px;overflow:hidden;transition:.3s}
+.journey-card:hover{transform:translateY(-6px);box-shadow:var(--shadow);border-color:transparent}
+.journey-card-photo{position:relative;aspect-ratio:4/3;overflow:hidden}
+.journey-card-photo .post-img{width:100%;height:100%;object-fit:cover}
+.journey-tag{position:absolute;left:14px;top:14px;background:#fff;color:var(--sage-deep);font-size:.72rem;font-weight:700;
+  letter-spacing:.1em;text-transform:uppercase;padding:.3rem .7rem;border-radius:100px}
+.journey-card-body{padding:22px 24px 26px;display:flex;flex-direction:column;gap:.6rem;flex:1}
+.journey-card-body h3{font-size:1.3rem;font-weight:500;line-height:1.2}
+.journey-card-body p{font-size:.92rem;color:var(--muted)}
+.journey-more{margin-top:auto;font-size:.88rem;font-weight:600;color:var(--sage-deep)}
+.post-meta{display:flex;flex-wrap:wrap;gap:.4rem 1.1rem;font-size:.82rem;color:var(--muted)}
+.post-meta span{display:inline-flex;align-items:center;gap:.35rem}
+.post-meta svg{color:var(--clay)}
+.post-img{display:block;width:100%;height:100%;object-fit:cover}
+.post-img--empty{min-height:220px;display:grid;place-items:center;background:linear-gradient(150deg,var(--sage-soft),var(--cream));
+  color:var(--sage-deep);font-size:.8rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+
+/* POST */
+.post{padding:56px 0 96px}
+.post-wrap{max-width:780px}
+.post-back{display:table;font-size:.88rem;font-weight:600;color:var(--sage-deep);margin-bottom:2rem}
+.post h1{font-size:clamp(2.1rem,5vw,3.2rem);font-weight:300;margin:.6rem 0 1rem}
+.post-cover{margin:2rem 0 2.4rem;aspect-ratio:16/10}
+.post-body h2{font-size:1.55rem;margin:2.2rem 0 .8rem}
+.post-body p{color:#544d45;font-size:1.05rem;line-height:1.75;margin-bottom:1.1rem}
+.post-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:2.4rem}
+.post-gallery figure{aspect-ratio:1;border-radius:20px}
+.post-sign{font-family:var(--display);font-style:italic;font-size:1.3rem;color:var(--sage-deep);margin-top:2.4rem}
+@media(max-width:560px){
+  .about-focus{grid-template-columns:1fr;padding:18px}
+  .journey-grid{grid-template-columns:1fr}
+  .post{padding:36px 0 66px}
 }

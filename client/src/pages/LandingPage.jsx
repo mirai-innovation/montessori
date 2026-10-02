@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { Header, Footer, Reveal } from "../components/Layout";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { JourneyCard } from "../components/Journey";
+import { journeyPosts } from "../../../shared/content.js";
 
 const IMAGES = {
   hero: "/assets/hero.jpg",
@@ -13,6 +15,8 @@ const IMAGES = {
   gallerySports: "/assets/gallery-sports.png",
   creds: ["/assets/cred-1.jpg", "/assets/cred-2.jpg"],
 };
+
+const posts = journeyPosts.filter((p) => p.published);
 
 export default function LandingPage() {
   const { user, isAdmin } = useAuth();
@@ -45,7 +49,7 @@ export default function LandingPage() {
               <a href="#asesorias" className="btn btn-ghost">Ver asesorías</a>
             </div>
             <div className="credchips">
-              <span className="chip">Guía AMI 0–3 en formación</span>
+              <span className="chip">Guía AMI Montessori 0–3</span>
               <span className="chip">Sesiones 100% en línea</span>
             </div>
           </Reveal>
@@ -62,20 +66,65 @@ export default function LandingPage() {
       <section id="sobre" className="tint">
         <div className="wrap about-grid">
           <div className="about-photo reveal in">
-            <div className="framed"><img src={IMAGES.about} alt="Sobre Adriana" /></div>
+            <div className="framed"><img src={IMAGES.about} alt="Adriana Villalobos" /></div>
+            <div className="about-route" aria-label="Maternidad entre México, Estados Unidos y Japón">
+              <span>México</span><i>→</i><span>Estados Unidos</span><i>→</i><span>Japón</span>
+            </div>
           </div>
           <div className="about-text reveal in">
             <span className="eyebrow">Sobre mí</span>
             <h2>Hola, soy Adriana</h2>
-            <p>Soy guía en formación AMI Montessori 0–3, mamá de Hanami y profesional con experiencia internacional en educación, desarrollo infantil y acompañamiento familiar.</p>
-            <p>Mi trabajo es ayudar a las familias a observar a su hijo con más objetividad, preparar ambientes en casa, establecer rutinas sanas y responder con mayor consciencia a las necesidades emocionales y de desarrollo de los primeros años.</p>
-            <p>No busco imponer un modelo perfecto de crianza, sino acompañar a cada familia a encontrar soluciones reales, amorosas y sostenibles según su contexto, su ritmo y las necesidades de su hijo.</p>
-            <p className="sign">— Adriana Villalobos Silva</p>
-            <div className="stats">
-              <div className="stat"><b>0–3</b><span>etapa de especialidad</span></div>
-              <div className="stat"><b>AMI</b><span>formación internacional</span></div>
-              <div className="stat"><b>8</b><span>áreas de asesoría</span></div>
+            <p className="about-lead">
+              Mamá mexicana viviendo en Japón, ingeniera aeronáutica, profesional en vinculación internacional,
+              anteriormente fundé una empresa de impacto social en México y soy guía AMI Montessori 0–3.
+            </p>
+            <p>
+              Mi trabajo nace de una idea muy simple: para acompañar bien a nuestros hijos, también necesitamos aprender
+              a acompañarnos a nosotras mismas.
+            </p>
+
+            <div className="about-focus">
+              <div>
+                <h3>Acompaño a tu hijo</h3>
+                <p>
+                  Acompaño a mamás y familias a comprender mejor el desarrollo de sus hijos, favorecer su independencia,
+                  establecer rutinas y límites respetuosos, preparar ambientes en casa y atravesar procesos importantes
+                  como el desarrollo emocional, el lenguaje, el movimiento, la adaptación escolar o dejar el pañal.
+                </p>
+              </div>
+              <div>
+                <h3>Y también a ti, mamá</h3>
+                <p>
+                  Pero mi acompañamiento no se queda solo en el niño. También quiero crear un espacio para la mamá: para
+                  hablar de cansancio, culpa, identidad, bienestar físico y emocional, sueños, relaciones, trabajo,
+                  independencia y todo lo que también cambia cuando nos convertimos en madres.
+                </p>
+              </div>
             </div>
+
+            <p>
+              Creo profundamente que no podemos dar lo que no tenemos. Por eso trabajar en nosotras, conocernos, cuidarnos
+              y sentirnos sostenidas también forma parte de la crianza.
+            </p>
+            <p>
+              Quiero construir una comunidad donde ninguna mamá sienta que tiene que hacerlo todo sola: un lugar para
+              compartir experiencias, aprender juntas, encontrar herramientas y, cuando sea necesario, poder orientarse
+              hacia especialistas adecuados tanto para mamá como para hijo.
+            </p>
+            <p>
+              Mi propia maternidad la he vivido entre México, Estados Unidos y Japón, criando a mi hija en culturas, idiomas
+              y formas de educar diferentes. Esa experiencia me ha enseñado a observar, cuestionar y tomar de cada entorno
+              aquello que considero mejor para nuestra familia.
+            </p>
+            <p>
+              No busco enseñar una maternidad perfecta. Quiero compartir lo que he estudiado, lo que he vivido, lo que me ha
+              servido y también lo que he tenido que aprender en el camino, para ayudarte a construir una maternidad más
+              consciente, una relación más conectada con tus hijos y una vida en la que tú también sigas existiendo.
+            </p>
+            <blockquote className="about-quote">
+              Porque nuestros hijos necesitan una mamá que los acompañe, pero las mamás también necesitamos sentirnos acompañadas.
+            </blockquote>
+            <p className="sign">— Adriana Villalobos Silva</p>
           </div>
         </div>
       </section>
@@ -196,6 +245,19 @@ export default function LandingPage() {
                 </p>
               </div>
             </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="mi-camino">
+        <div className="wrap">
+          <div className="sec-head reveal in">
+            <span className="eyebrow">Mi camino</span>
+            <h2>Experiencias, congresos y aprendizajes</h2>
+            <p>Los eventos, formaciones y encuentros que siguen nutriendo mi manera de acompañar a las familias.</p>
+          </div>
+          <div className="journey-grid reveal in">
+            {posts.map((post) => <JourneyCard key={post.slug} post={post} />)}
           </div>
         </div>
       </section>
