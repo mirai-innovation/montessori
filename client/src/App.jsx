@@ -21,6 +21,7 @@ import AdminAgendaPage from "./pages/admin/AdminAgendaPage";
 import AdminFamiliesPage from "./pages/admin/AdminFamiliesPage";
 import AdminFamilyDetailPage from "./pages/admin/AdminFamilyDetailPage";
 import AdminPaymentsPage from "./pages/admin/AdminPaymentsPage";
+import AdminLeadsPage from "./pages/admin/AdminLeadsPage";
 
 export default function App() {
   return (
@@ -51,6 +52,7 @@ export default function App() {
             <Route path="familias" element={<AdminFamiliesPage />} />
             <Route path="familias/:id" element={<AdminFamilyDetailPage />} />
             <Route path="ingresos" element={<AdminPaymentsPage />} />
+            <Route path="interesados" element={<AdminLeadsPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -5,14 +5,17 @@ import Payment from "../models/Payment.js";
 import Appointment from "../models/Appointment.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import {
+  esc,
+  notifyAdmin,
   sendAppointmentRequestedEmail,
 } from "../config/email.js";
+import { formatMxn } from "../utils/revenue.js";
 import {
   combineDateAndTime,
   formatAppointmentDate,
   getAvailableSlotsForDate,
 } from "../utils/availability.js";
-import { bookingPlans } from "../../shared/content.js";
+import { bookingPlans, servicePlans, getServicePlan, isPaidPlan } from "../../shared/content.js";
 
 const router = express.Router();
 
@@ -21,22 +24,31 @@ function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY);
 }
 
-const PACKAGE_META = {
+// Planes anteriores (solo para completar pagos que se iniciaron antes del cambio de catálogo)
+const LEGACY_META = {
   single: { name: "1 sesión", credits: 1, amountCents: 85000 },
   pack4: { name: "Paquete 4 sesiones", credits: 4, amountCents: 299000 },
 };
 
+function planMeta(packageId) {
+  return getServicePlan(packageId) || LEGACY_META[packageId] || null;
+}
+
+function lineItem(plan) {
+  return {
+    quantity: 1,
+    price_data: {
+      currency: "mxn",
+      unit_amount: plan.amountCents,
+      product_data: { name: plan.name, description: plan.desc },
+    },
+  };
+}
+
 router.get("/config", (_req, res) => {
   res.json({
     enabled: !!process.env.STRIPE_SECRET_KEY,
-    prices: {
-      single: process.env.STRIPE_PRICE_SINGLE || null,
-      pack4: process.env.STRIPE_PRICE_PACK4 || null,
-    },
-    packages: [
-      { id: "single", name: "1 sesión", credits: 1, description: "Asesoría individual en línea" },
-      { id: "pack4", name: "Paquete 4 sesiones", credits: 4, description: "Acompañamiento continuo con descuento" },
-    ],
+    packages: servicePlans.filter(isPaidPlan),
     bookingPlans,
   });
 });
@@ -47,19 +59,15 @@ router.post("/checkout", authMiddleware, async (req, res) => {
     return res.status(503).json({ message: "Pagos no configurados aún. Contacta a Adriana para reservar." });
   }
   const { packageId } = req.body;
-  const priceMap = {
-    single: process.env.STRIPE_PRICE_SINGLE,
-    pack4: process.env.STRIPE_PRICE_PACK4,
-  };
-  const priceId = priceMap[packageId];
-  if (!priceId) {
+  const plan = getServicePlan(packageId);
+  if (!isPaidPlan(plan)) {
     return res.status(400).json({ message: "Paquete no válido" });
   }
   const user = await User.findById(req.userId);
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: user.email,
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items: [lineItem(plan)],
     success_url: `${process.env.FRONTEND_URL}/precios?success=1`,
     cancel_url: `${process.env.FRONTEND_URL}/precios?cancelled=1`,
     metadata: { userId: user._id.toString(), packageId, source: "precios" },
@@ -77,25 +85,19 @@ router.post("/booking-checkout", authMiddleware, async (req, res) => {
   if (!dateKey || !time || !serviceType || !packageId) {
     return res.status(400).json({ message: "Faltan datos de la reserva" });
   }
-  const meta = PACKAGE_META[packageId];
-  if (!meta) {
+  const plan = getServicePlan(packageId);
+  if (!isPaidPlan(plan)) {
     return res.status(400).json({ message: "Plan de pago no válido" });
   }
   const slots = await getAvailableSlotsForDate(dateKey);
   if (!slots.includes(time)) {
     return res.status(409).json({ message: "Ese horario ya no está disponible" });
   }
-  const priceId = packageId === "single"
-    ? process.env.STRIPE_PRICE_SINGLE
-    : process.env.STRIPE_PRICE_PACK4;
-  if (!priceId) {
-    return res.status(503).json({ message: "Precio no configurado en Stripe" });
-  }
   const user = await User.findById(req.userId);
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: user.email,
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items: [lineItem(plan)],
     success_url: `${process.env.FRONTEND_URL}/citas/nueva?paid=1&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.FRONTEND_URL}/citas/nueva?cancelled=1`,
     metadata: {
@@ -134,7 +136,7 @@ async function fulfillCheckout(session) {
   const existing = await Payment.findOne({ stripeSessionId: session.id });
   if (existing) return;
 
-  const meta = PACKAGE_META[packageId] || { credits: packageId === "pack4" ? 4 : 1, amountCents: session.amount_total || 0 };
+  const meta = planMeta(packageId) || { name: packageId, credits: 1, amountCents: session.amount_total || 0 };
   const amount = session.amount_total || meta.amountCents;
   const source = session.metadata?.source || "precios";
 
@@ -171,27 +173,34 @@ async function fulfillCheckout(session) {
     });
     payment.appointmentId = appointment._id;
     await payment.save();
-    if (meta.credits > 1) {
-      await User.findByIdAndUpdate(userId, {
-        $inc: { sessionCredits: meta.credits - 1 },
-        activePlan: packageId === "pack4" ? "pack4" : "single",
-      });
-    } else {
-      await User.findByIdAndUpdate(userId, { activePlan: "single" });
-    }
+    await User.findByIdAndUpdate(userId, {
+      ...(meta.credits > 1 && { $inc: { sessionCredits: meta.credits - 1 } }),
+      activePlan: packageId,
+    });
     const user = await User.findById(userId);
     if (user) {
-      await sendAppointmentRequestedEmail(
-        user.email,
-        user.name,
-        formatAppointmentDate(scheduledAt),
-        serviceType
-      );
+      const when = formatAppointmentDate(scheduledAt, user.timezone);
+      const whenAdmin = formatAppointmentDate(scheduledAt, user.timezone, "para la familia");
+      await Promise.all([
+        sendAppointmentRequestedEmail(user.email, user.name, when, serviceType),
+        notifyAdmin({
+          subject: `Cita pagada: ${user.name} · ${formatAppointmentDate(scheduledAt)}`,
+          html: `<p><b>${esc(user.name)}</b> (${esc(user.email)}) pagó <b>${esc(meta.name)}</b> (${formatMxn(amount)}) y reservó para el <b>${esc(whenAdmin)}</b>.</p>
+            <p>Tema: ${esc(serviceType)}</p>${userNotes ? `<p>Notas: ${esc(userNotes)}</p>` : ""}`,
+          replyTo: user.email,
+        }),
+      ]);
     }
   } else {
     await User.findByIdAndUpdate(userId, {
       $inc: { sessionCredits: meta.credits },
-      activePlan: packageId === "pack4" ? "pack4" : "single",
+      activePlan: packageId,
+    });
+    const user = await User.findById(userId);
+    await notifyAdmin({
+      subject: `Compra: ${meta.name} · ${user?.name || "familia"}`,
+      html: `<p><b>${esc(user?.name)}</b> (${esc(user?.email)}) compró <b>${esc(meta.name)}</b> (${formatMxn(amount)}) y tiene ${meta.credits} crédito(s) para reservar.</p>`,
+      replyTo: user?.email,
     });
   }
 }

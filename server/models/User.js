@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { servicePlans } from "../../shared/content.js";
 
 const userSchema = new mongoose.Schema(
   {
@@ -13,7 +14,7 @@ const userSchema = new mongoose.Schema(
     sessionCredits: { type: Number, default: 0 },
     activePlan: {
       type: String,
-      enum: ["none", "single", "pack4", "accompany", "membership"],
+      enum: ["none", "single", "pack4", "accompany", "membership", ...servicePlans.map((p) => p.id)],
       default: "none",
     },
     planRenewsAt: { type: Date },

@@ -57,6 +57,8 @@ export const api = {
   adminUpdateUser: (id, body) => request(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   adminGetNote: (appointmentId) => request(`/admin/session-notes/appointment/${appointmentId}`),
   adminSaveNote: (body) => request("/admin/session-notes", { method: "POST", body: JSON.stringify(body) }),
+  createLead: (body) => request("/leads", { method: "POST", body: JSON.stringify(body) }),
+  adminLeads: (type) => request(`/admin/leads${type ? `?type=${type}` : ""}`),
   stripeConfig: () => request("/stripe/config"),
   stripeCheckout: (packageId) => request("/stripe/checkout", { method: "POST", body: JSON.stringify({ packageId }) }),
   bookingCheckout: (body) => request("/stripe/booking-checkout", { method: "POST", body: JSON.stringify(body) }),

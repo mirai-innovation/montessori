@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { PageHeader } from "../../components/AppShell";
-import { formatDateTime } from "../../components/Layout";
+import { formatAdminDateTime } from "../../components/Layout";
 import { formatMxn } from "../../utils/format";
 
 export default function AdminFamilyDetailPage() {
@@ -55,7 +55,7 @@ export default function AdminFamilyDetailPage() {
                 <div key={a._id} className="timeline-item">
                   <div className="timeline-dot" data-status={a.status} />
                   <div>
-                    <div style={{ fontWeight: 600 }}>{formatDateTime(a.scheduledAt)}</div>
+                    <div style={{ fontWeight: 600 }}>{formatAdminDateTime(a.scheduledAt)}</div>
                     <div style={{ fontSize: ".86rem", color: "var(--muted)" }}>
                       {a.serviceType} · {a.status}
                     </div>

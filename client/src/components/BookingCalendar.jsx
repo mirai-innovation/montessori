@@ -1,7 +1,18 @@
 import { useEffect, useState } from "react";
 import { monthNames } from "../../../shared/content.js";
+import { BUSINESS_TZ, formatInZone, fromTokyo } from "../../../shared/time.js";
 
 const DOW = ["L", "M", "X", "J", "V", "S", "D"];
+const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const SHOW_LOCAL = LOCAL_TZ !== BUSINESS_TZ;
+
+/** Hora local de la familia para un horario de la agenda (ej. "19:00 del 4 oct") */
+function localLabel(dateKey, slot) {
+  const at = fromTokyo(dateKey, slot);
+  const time = formatInZone(at, LOCAL_TZ, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  const sameDay = formatInZone(at, LOCAL_TZ, { day: "numeric" }) === String(Number(dateKey.slice(8)));
+  return sameDay ? time : `${time} del ${formatInZone(at, LOCAL_TZ, { day: "numeric", month: "short" })}`;
+}
 
 export function BookingCalendar({ onSelect, selectedDate, selectedSlot, fetchAvailability }) {
   const today = new Date();
@@ -79,7 +90,10 @@ export function BookingCalendar({ onSelect, selectedDate, selectedSlot, fetchAva
       </div>
       {dateKey && (
         <div style={{ marginTop: 16 }}>
-          <p className="hint">Horarios disponibles:</p>
+          <p className="hint">
+            Horarios disponibles en <b>hora de Japón</b>
+            {SHOW_LOCAL && <> · entre paréntesis, tu hora local</>}:
+          </p>
           <div className="slots">
             {slots.length === 0 && <span className="hint">Sin horarios este día</span>}
             {slots.map((slot) => (
@@ -90,6 +104,7 @@ export function BookingCalendar({ onSelect, selectedDate, selectedSlot, fetchAva
                 onClick={() => onSelect({ date: selectedDate, dateKey, slot })}
               >
                 {slot}
+                {SHOW_LOCAL && <span className="slot-local"> ({localLabel(dateKey, slot)})</span>}
               </button>
             ))}
           </div>

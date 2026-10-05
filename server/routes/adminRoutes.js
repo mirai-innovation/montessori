@@ -5,6 +5,7 @@ import ChildProfile from "../models/ChildProfile.js";
 import SessionNote from "../models/SessionNote.js";
 import User from "../models/User.js";
 import Payment from "../models/Payment.js";
+import Lead from "../models/Lead.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { adminMiddleware } from "../middleware/adminMiddleware.js";
 import {
@@ -14,6 +15,7 @@ import {
 } from "../utils/availability.js";
 import { getRevenueStats, getRevenueSummary, childAgeLabel, daysSince } from "../utils/revenue.js";
 import { planLabels, slotTimes, mergeSlotTimes, formatSlotTime } from "../../shared/content.js";
+import { addDays, BUSINESS_TZ, dayOfWeek, formatInZone, fromTokyo, tokyoDateKey, tokyoWeekStart } from "../../shared/time.js";
 import {
   sendAppointmentConfirmedEmail,
   sendSessionNotePublishedEmail,
@@ -22,24 +24,17 @@ import {
 const router = express.Router();
 router.use(authMiddleware, adminMiddleware);
 
+// "Hoy" y "esta semana" se calculan en hora de Japón (zona de la agenda)
+function dayRange(startKey, days) {
+  return { start: fromTokyo(startKey), end: new Date(fromTokyo(addDays(startKey, days)).getTime() - 1) };
+}
+
 function todayRange() {
-  const now = new Date();
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(now);
-  end.setHours(23, 59, 59, 999);
-  return { start, end };
+  return dayRange(tokyoDateKey(new Date()), 1);
 }
 
 function weekRange() {
-  const now = new Date();
-  const start = new Date(now);
-  start.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  end.setHours(23, 59, 59, 999);
-  return { start, end };
+  return dayRange(tokyoWeekStart(), 7);
 }
 
 /** Panel general: una sola respuesta optimizada */
@@ -166,17 +161,8 @@ router.get("/dashboard", async (_req, res) => {
 });
 
 router.get("/stats", async (_req, res) => {
-  const now = new Date();
-  const startOfToday = new Date(now);
-  startOfToday.setHours(0, 0, 0, 0);
-  const endOfToday = new Date(now);
-  endOfToday.setHours(23, 59, 59, 999);
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  startOfWeek.setHours(0, 0, 0, 0);
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6);
-  endOfWeek.setHours(23, 59, 59, 999);
+  const { start: startOfToday, end: endOfToday } = todayRange();
+  const { start: startOfWeek, end: endOfWeek } = weekRange();
 
   const [pending, todayCount, weekCount, activeFamilies, totalAppointments, cancelled, revenue, serviceStats] = await Promise.all([
     Appointment.countDocuments({ status: "solicitada" }),
@@ -224,22 +210,10 @@ router.get("/revenue", async (_req, res) => {
 });
 
 router.get("/agenda/week", async (req, res) => {
-  const startParam = req.query.start;
-  let weekStart;
-  if (startParam) {
-    const [y, m, d] = startParam.split("-").map(Number);
-    weekStart = new Date(y, m - 1, d);
-  } else {
-    const now = new Date();
-    weekStart = new Date(now);
-    const day = weekStart.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    weekStart.setDate(weekStart.getDate() + diff);
-  }
-  weekStart.setHours(0, 0, 0, 0);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 6);
-  weekEnd.setHours(23, 59, 59, 999);
+  const startKey = /^\d{4}-\d{2}-\d{2}$/.test(req.query.start || "")
+    ? tokyoWeekStart(fromTokyo(req.query.start))
+    : tokyoWeekStart();
+  const { start: weekStart, end: weekEnd } = dayRange(startKey, 7);
 
   const availability = await getOrCreateAvailability();
   const weeklySlots = {};
@@ -259,14 +233,12 @@ router.get("/agenda/week", async (req, res) => {
 
   const days = [];
   for (let i = 0; i < 7; i++) {
-    const d = new Date(weekStart);
-    d.setDate(weekStart.getDate() + i);
-    const key = parseDateKey(d);
-    const dow = String(d.getDay());
+    const key = addDays(startKey, i);
+    const dow = String(dayOfWeek(key));
     days.push({
       dateKey: key,
-      dayOfWeek: d.getDay(),
-      label: d.toLocaleDateString("es-MX", { weekday: "short", day: "numeric" }),
+      dayOfWeek: dayOfWeek(key),
+      label: formatInZone(fromTokyo(key, "12:00"), BUSINESS_TZ, { weekday: "short", day: "numeric" }),
       slots: weeklySlots[dow] || [],
       blocked: availability.blockedDates.includes(key),
     });
@@ -278,8 +250,8 @@ router.get("/agenda/week", async (req, res) => {
   if (!allSlotTimes.length) allSlotTimes.push(...slotTimes.filter((t) => ["09:00", "10:30", "12:00", "16:00", "17:30"].includes(t)));
 
   res.json({
-    weekStart: parseDateKey(weekStart),
-    weekEnd: parseDateKey(weekEnd),
+    weekStart: startKey,
+    weekEnd: addDays(startKey, 6),
     days,
     appointments,
     slotTimes: allSlotTimes,
@@ -298,7 +270,7 @@ router.get("/appointments", async (req, res) => {
 router.patch("/appointments/:id", async (req, res) => {
   try {
     const { status, meetingLink, adminNotes, scheduledAt } = req.body;
-    const appointment = await Appointment.findById(req.params.id).populate("userId", "name email");
+    const appointment = await Appointment.findById(req.params.id).populate("userId", "name email timezone");
     if (!appointment) {
       return res.status(404).json({ message: "Cita no encontrada" });
     }
@@ -312,7 +284,7 @@ router.patch("/appointments/:id", async (req, res) => {
       await sendAppointmentConfirmedEmail(
         appointment.userId.email,
         appointment.userId.name,
-        formatAppointmentDate(appointment.scheduledAt),
+        formatAppointmentDate(appointment.scheduledAt, appointment.userId.timezone),
         appointment.meetingLink
       );
     }
@@ -390,7 +362,7 @@ router.get("/users", async (req, res) => {
     const apt = aptMap[u._id.toString()];
     const inactiveDays = apt ? daysSince(apt.lastAt) : daysSince(u.createdAt);
     const atRisk = inactiveDays !== null && inactiveDays >= 21;
-    const planKey = u.activePlan && u.activePlan !== "none" ? u.activePlan : u.sessionCredits > 0 ? "pack4" : "none";
+    const planKey = u.activePlan && u.activePlan !== "none" ? u.activePlan : u.sessionCredits > 0 ? "credit" : "none";
     return {
       ...u.toObject(),
       childName: prof?.childName || "",
@@ -415,7 +387,7 @@ router.get("/users/:id", async (req, res) => {
     Payment.find({ userId: user._id, status: "completed" }).sort({ paidAt: -1 }),
   ]);
   const totalPaid = payments.reduce((s, p) => s + p.amount, 0);
-  const planKey = user.activePlan && user.activePlan !== "none" ? user.activePlan : user.sessionCredits > 0 ? "pack4" : "none";
+  const planKey = user.activePlan && user.activePlan !== "none" ? user.activePlan : user.sessionCredits > 0 ? "credit" : "none";
   res.json({
     user,
     profile,
@@ -489,6 +461,12 @@ router.post("/session-notes", async (req, res) => {
     console.error(error);
     res.status(500).json({ message: "Error al guardar nota" });
   }
+});
+
+router.get("/leads", async (req, res) => {
+  const filter = req.query.type ? { type: req.query.type } : {};
+  const leads = await Lead.find(filter).sort({ createdAt: -1 }).limit(500);
+  res.json({ leads });
 });
 
 export default router;

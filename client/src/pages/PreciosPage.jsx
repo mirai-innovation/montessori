@@ -1,18 +1,22 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Header, Footer } from "../components/Layout";
+import { PricingGrid } from "../components/Pricing";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { isPaidPlan } from "../../../shared/content.js";
 
 export default function PreciosPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [params] = useSearchParams();
-  const [config, setConfig] = useState(null);
+  const [stripeEnabled, setStripeEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    api.stripeConfig().then(setConfig).catch(() => {});
+    api.stripeConfig().then((c) => setStripeEnabled(c.enabled)).catch(() => {});
   }, []);
+
+  const reserveTo = user ? (isAdmin ? "/admin" : "/citas/nueva") : "/registro";
 
   const checkout = async (packageId) => {
     if (!user) {
@@ -30,6 +34,17 @@ export default function PreciosPage() {
     }
   };
 
+  const action = (plan, className) => {
+    if (stripeEnabled && isPaidPlan(plan) && user && !isAdmin) {
+      return (
+        <button type="button" className={className || "btn btn-primary btn-sm"} disabled={loading} onClick={() => checkout(plan.id)}>
+          Comprar
+        </button>
+      );
+    }
+    return <Link to={reserveTo} className={className}>{plan.firstTimeOnly ? "Agendar mi sesión gratis" : "Reservar →"}</Link>;
+  };
+
   return (
     <div className="app-shell">
       <Header />
@@ -37,31 +52,11 @@ export default function PreciosPage() {
         <div className="wrap">
           <div className="sec-head">
             <span className="eyebrow">Inversión</span>
-            <h2>Precios y paquetes</h2>
-            <p>Sesiones individuales en línea. Los pagos en línea estarán disponibles cuando Stripe esté configurado.</p>
+            <h2>Precios y asesorías</h2>
+            <p>Sesiones individuales en línea. Al comprar una asesoría recibes un crédito que puedes usar al reservar tu fecha y hora.</p>
           </div>
           {params.get("success") && <div className="alert alert-success">¡Pago recibido! Tus créditos se acreditarán en breve.</div>}
-          <div className="cards" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
-            {(config?.packages || [
-              { id: "single", name: "1 sesión", credits: 1, description: "Asesoría individual en línea (90 min)" },
-              { id: "pack4", name: "Paquete 4 sesiones", credits: 4, description: "Acompañamiento continuo con seguimiento" },
-            ]).map((p) => (
-              <div key={p.id} className="card">
-                <h3>{p.name}</h3>
-                <p>{p.description}</p>
-                <p style={{ marginTop: 12, fontSize: ".85rem", color: "var(--muted)" }}>
-                  {config?.enabled ? "Pago en línea disponible" : "Reserva sin pago en línea por ahora — contacta a Adriana"}
-                </p>
-                {config?.enabled ? (
-                  <button type="button" className="btn btn-primary btn-sm" style={{ marginTop: 14 }} disabled={loading} onClick={() => checkout(p.id)}>
-                    Comprar
-                  </button>
-                ) : (
-                  <a href="/citas/nueva" className="btn btn-primary btn-sm" style={{ marginTop: 14 }}>Reservar sesión</a>
-                )}
-              </div>
-            ))}
-          </div>
+          <PricingGrid action={action} />
         </div>
       </main>
       <Footer />

@@ -12,6 +12,7 @@ import sessionNoteRoutes from "./routes/sessionNoteRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import contentRoutes from "./routes/contentRoutes.js";
 import stripeRoutes from "./routes/stripeRoutes.js";
+import leadRoutes from "./routes/leadRoutes.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -67,6 +68,7 @@ app.use("/api/session-notes", sessionNoteRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/content", contentRoutes);
 app.use("/api/stripe", stripeRoutes);
+app.use("/api/leads", leadRoutes);
 
 app.use("/api", (_req, res) => {
   res.status(404).json({ message: "Ruta API no encontrada" });

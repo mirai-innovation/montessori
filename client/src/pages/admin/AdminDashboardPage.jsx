@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import { PageHeader } from "../../components/AppShell";
 import { formatMxn } from "../../utils/format";
+import { tokyoParts, tokyoTime } from "../../../../shared/time.js";
 
 const weekdays = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -11,8 +12,8 @@ export default function AdminDashboardPage() {
   const [stats, setStats] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [atRisk, setAtRisk] = useState([]);
-  const now = new Date();
-  const dateLabel = `${weekdays[now.getDay()]} · ${now.getDate()} de ${months[now.getMonth()]}`;
+  const now = tokyoParts(new Date());
+  const dateLabel = `${weekdays[now.dow]} · ${now.day} de ${months[now.month - 1]}`;
 
   useEffect(() => {
     api.adminDashboard()
@@ -79,8 +80,7 @@ export default function AdminDashboardPage() {
             <p className="empty" style={{ padding: "12px 0" }}>No hay sesiones programadas para hoy.</p>
           ) : (
             appointments.map((a) => {
-              const d = new Date(a.scheduledAt);
-              const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+              const time = tokyoTime(a.scheduledAt);
               return (
                 <div key={a._id} className="session-row">
                   <div className="session-time">

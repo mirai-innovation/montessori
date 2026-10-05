@@ -4,9 +4,11 @@ import { BookingCalendar } from "../../components/BookingCalendar";
 import { PageHeader } from "../../components/AppShell";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import { bookingPlans, serviceTypes } from "../../../../shared/content.js";
+import { bookingPlans, serviceTypes, isPaidPlan } from "../../../../shared/content.js";
+import { formatAppointmentBoth, fromTokyo } from "../../../../shared/time.js";
 
 const STEP_LABELS = ["Fecha y hora", "Plan", "Confirmar"];
+const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 export default function NewAppointmentPage() {
   const navigate = useNavigate();
@@ -18,14 +20,21 @@ export default function NewAppointmentPage() {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [serviceType, setServiceType] = useState(serviceTypes[0]);
   const [userNotes, setUserNotes] = useState("");
-  const [selectedPlan, setSelectedPlan] = useState("request");
+  const [selectedPlan, setSelectedPlan] = useState(null);
   const [stripeEnabled, setStripeEnabled] = useState(false);
   const [plans, setPlans] = useState(bookingPlans);
+  const [isFirstTime, setIsFirstTime] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
   const fetchAvailability = useCallback((year, month) => api.getAvailability(year, month), []);
+
+  useEffect(() => {
+    api.getAppointments()
+      .then((d) => setIsFirstTime(!d.appointments.some((a) => a.status !== "cancelada")))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     api.stripeConfig().then((c) => {
@@ -68,11 +77,14 @@ export default function NewAppointmentPage() {
 
   const availablePlans = plans.filter((p) => {
     if (p.id === "credit") return (user?.sessionCredits || 0) > 0;
-    if (p.id === "single" || p.id === "pack4") return stripeEnabled;
+    if (p.firstTimeOnly) return isFirstTime;
+    if (isPaidPlan(p)) return stripeEnabled;
     return true;
   });
 
   const selectedPlanInfo = plans.find((p) => p.id === selectedPlan) || plans[0];
+  const needsPayment = isPaidPlan(selectedPlanInfo);
+  const whenLabel = dateKey && selectedSlot ? formatAppointmentBoth(fromTokyo(dateKey, selectedSlot), LOCAL_TZ) : null;
 
   const goNext = () => {
     setError("");
@@ -83,7 +95,8 @@ export default function NewAppointmentPage() {
       }
       setStep(1);
       if (!availablePlans.find((p) => p.id === selectedPlan)) {
-        setSelectedPlan(availablePlans[0]?.id || "request");
+        const preferred = ["credit", "free30", "personal", "request"].find((id) => availablePlans.some((p) => p.id === id));
+        setSelectedPlan(preferred || "request");
       }
     } else if (step === 1) {
       setStep(2);
@@ -95,7 +108,7 @@ export default function NewAppointmentPage() {
     setLoading(true);
     setError("");
     try {
-      if (selectedPlan === "single" || selectedPlan === "pack4") {
+      if (needsPayment) {
         const { url } = await api.bookingCheckout({
           dateKey,
           time: selectedSlot,
@@ -130,7 +143,7 @@ export default function NewAppointmentPage() {
           <div className="welcome-icon">✓</div>
           <h2 className="auth-title" style={{ fontSize: "1.8rem" }}>¡Reserva enviada!</h2>
           <p className="auth-sub" style={{ maxWidth: "42ch", margin: "0 auto 1.4rem" }}>
-            Tu asesoría está agendada para el <b>{dateKey}</b> a las <b>{selectedSlot}</b>.
+            {whenLabel ? <>Tu asesoría está agendada para el <b>{whenLabel}</b>.</> : "Tu asesoría quedó agendada."}
             Adriana confirmará por correo con el enlace de videollamada.
           </p>
           <Link to="/dashboard" className="btn btn-primary">Ir a mi inicio</Link>
@@ -168,7 +181,7 @@ export default function NewAppointmentPage() {
               <h3>Detalles</h3>
               <p className="hint">
                 {selectedDate && selectedSlot
-                  ? `${dateKey} · ${selectedSlot}`
+                  ? whenLabel
                   : "Selecciona fecha y horario"}
               </p>
               <div className="field">
@@ -191,6 +204,12 @@ export default function NewAppointmentPage() {
         {step === 1 && (
           <div className="booking-plans-wrap">
             <h3 style={{ fontFamily: "var(--display)", marginBottom: "1rem" }}>Elige tu plan</h3>
+            {isFirstTime && (
+              <p className="alert alert-warm">
+                ¿Primera vez? Tu primera asesoría de 30 min es gratis. Antes de la sesión completa el cuestionario de tu{" "}
+                <Link to="/perfil">perfil familiar</Link> sobre tu hijo y tu principal dificultad.
+              </p>
+            )}
             {(user?.sessionCredits || 0) > 0 && (
               <p className="panel-muted" style={{ marginBottom: 16 }}>
                 Tienes <b>{user.sessionCredits}</b> crédito{user.sessionCredits > 1 ? "s" : ""} disponible{user.sessionCredits > 1 ? "s" : ""}.
@@ -205,7 +224,7 @@ export default function NewAppointmentPage() {
                   onClick={() => setSelectedPlan(p.id)}
                 >
                   <div className="plan-card-name">{p.name}</div>
-                  <div className="plan-card-mode">{p.mode}</div>
+                  <div className="plan-card-mode">{p.desc}</div>
                   <div className="plan-card-price">{p.priceLabel}</div>
                 </button>
               ))}
@@ -221,8 +240,7 @@ export default function NewAppointmentPage() {
           <div className="booking-summary-wrap">
             <div className="booking-side" style={{ maxWidth: 480 }}>
               <h3>Resumen</h3>
-              <div className="summary-row"><span>Fecha</span><b>{dateKey}</b></div>
-              <div className="summary-row"><span>Hora</span><b>{selectedSlot}</b></div>
+              <div className="summary-row"><span>Fecha y hora</span><b style={{ textAlign: "right", maxWidth: "26ch" }}>{whenLabel}</b></div>
               <div className="summary-row"><span>Asesoría</span><b>{serviceType}</b></div>
               <div className="summary-row"><span>Plan</span><b>{selectedPlanInfo.name}</b></div>
               <div className="summary-row total"><span>Total</span><b>{selectedPlanInfo.priceLabel}</b></div>
@@ -232,7 +250,7 @@ export default function NewAppointmentPage() {
               <div className="form-actions" style={{ marginTop: 20 }}>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStep(1)}>← Atrás</button>
                 <button type="button" className="btn btn-primary" disabled={loading} onClick={confirmBooking}>
-                  {loading ? "Procesando…" : selectedPlan === "single" || selectedPlan === "pack4" ? "Confirmar y pagar" : "Confirmar reserva"}
+                  {loading ? "Procesando…" : needsPayment ? "Confirmar y pagar" : "Confirmar reserva"}
                 </button>
               </div>
             </div>

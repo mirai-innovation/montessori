@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
-import { sendWelcomeEmail } from "../config/email.js";
+import { esc, notifyAdmin, sendWelcomeEmail } from "../config/email.js";
 
 const router = express.Router();
 
@@ -28,7 +28,14 @@ router.post("/register", async (req, res) => {
       timezone: timezone || "America/Mexico_City",
       isActive: true,
     });
-    await sendWelcomeEmail(user.email, user.name);
+    await Promise.all([
+      sendWelcomeEmail(user.email, user.name),
+      notifyAdmin({
+        subject: `Nueva familia registrada: ${user.name}`,
+        html: `<p><b>${esc(user.name)}</b> (${esc(user.email)}) creó su cuenta.</p>`,
+        replyTo: user.email,
+      }),
+    ]);
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "8h" });
     res.status(201).json({
       token,

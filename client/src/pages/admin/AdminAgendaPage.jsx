@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import { PageHeader } from "../../components/AppShell";
 import { slotTimes, formatSlotTime } from "../../../../shared/content.js";
+import { tokyoDateKey } from "../../../../shared/time.js";
 
 const DAYS = [
   { key: "1", label: "Lunes" },
@@ -74,9 +75,7 @@ export default function AdminAgendaPage() {
   const aptAt = (dateKey, time) => {
     if (!weekData) return null;
     return weekData.appointments.find((a) => {
-      const d = new Date(a.scheduledAt);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      return key === dateKey && formatSlotTime(d) === time;
+      return tokyoDateKey(a.scheduledAt) === dateKey && formatSlotTime(a.scheduledAt) === time;
     });
   };
 
@@ -146,7 +145,7 @@ export default function AdminAgendaPage() {
 
       {tab === "slots" && (
         <div className="panel">
-          <p className="panel-muted">Configura horarios por día y bloquea fechas de vacaciones.</p>
+          <p className="panel-muted">Configura horarios por día (en <b>hora de Japón</b>) y bloquea fechas de vacaciones. Las familias ven también su hora local al reservar.</p>
           {msg && <div className="alert alert-success">{msg}</div>}
 
           {DAYS.map(({ key, label }) => (

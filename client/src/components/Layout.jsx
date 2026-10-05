@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useState } from "react";
+import { BUSINESS_TZ, formatInZone } from "../../../shared/time.js";
 
 function Leaf() {
   return (
@@ -17,7 +18,7 @@ export function Brand({ light }) {
       <Leaf />
       <div>
         <b>Adriana Villalobos</b>
-        <span>Montessori en Casa 0–3</span>
+        <span>Montessori 0–3</span>
       </div>
     </Link>
   );
@@ -38,9 +39,9 @@ export function Header({ simple }) {
             <>
               <a href="/#sobre" onClick={() => setOpen(false)}>Sobre mí</a>
               <a href="/#asesorias" onClick={() => setOpen(false)}>Asesorías</a>
-              <a href="/#ayuda" onClick={() => setOpen(false)}>Cómo te ayudo</a>
               <a href="/#mi-camino" onClick={() => setOpen(false)}>Mi camino</a>
-              <a href="/#formacion" onClick={() => setOpen(false)}>Formación</a>
+              <a href="/#recursos" onClick={() => setOpen(false)}>Recursos</a>
+              <a href="/#escuela" onClick={() => setOpen(false)}>Escuela</a>
             </>
           )}
           {user ? (
@@ -56,7 +57,7 @@ export function Header({ simple }) {
             <>
               <Link to="/login" onClick={() => setOpen(false)}>Ingresar</Link>
               <Link to={reserveTo} className="btn btn-primary nav-cta" onClick={() => setOpen(false)}>
-                Reservar sesión
+                Reservar asesoría
               </Link>
             </>
           )}
@@ -79,29 +80,39 @@ export function Footer() {
               <Leaf />
               <div>
                 <b>Adriana Villalobos</b>
-                <span>Montessori en Casa 0–3</span>
+                <span>Montessori 0–3</span>
               </div>
             </div>
-            <p>Observación Montessori, crianza respetuosa y soluciones concretas para la vida diaria con tu hijo de 0 a 3 años.</p>
+            <p>Montessori para la vida real: autonomía, límites respetuosos y hogares preparados para niños de 0 a 3 años.</p>
           </div>
           <div className="foot-col">
             <b>Explora</b>
             <a href="/#sobre">Sobre mí</a>
             <a href="/#asesorias">Asesorías</a>
-            <a href="/#ayuda">Cómo te ayudo</a>
             <a href="/#mi-camino">Mi camino</a>
+            <a href="/#recursos">Recursos</a>
+            <a href="/#escuela">Escuela en Osaka</a>
             <a href="/como-funciona">Cómo funciona</a>
           </div>
           <div className="foot-col">
             <b>Cuenta</b>
             <Link to="/login">Ingresar</Link>
             <Link to="/registro">Registrarse</Link>
-            <Link to="/privacidad">Privacidad</Link>
             <Link to="/precios">Precios</Link>
           </div>
+          <div className="foot-col">
+            <b>Sígueme</b>
+            <a href="https://instagram.com/narebyadriana" target="_blank" rel="noopener noreferrer">Instagram @narebyadriana</a>
+            <b className="foot-sub">Legales</b>
+            <Link to="/privacidad">Política de privacidad</Link>
+          </div>
+        </div>
+        <div className="disclaimer">
+          La asesoría es de carácter educativo y no sustituye la atención médica, psicológica o terapéutica. Cada niño y cada
+          familia son únicos; las recomendaciones se adaptan a tu contexto.
         </div>
         <div className="foot-bottom">
-          <span>© {new Date().getFullYear()} Adriana Villalobos</span>
+          <span>© {new Date().getFullYear()} Adriana Villalobos Silva · Montessori 0–3</span>
           <span>Hecho con cuidado para acompañar a las familias.</span>
         </div>
       </div>
@@ -117,9 +128,14 @@ export function StatusBadge({ status }) {
   return <span className={`badge badge-${status}`}>{status}</span>;
 }
 
-export function formatDateTime(iso) {
-  const d = new Date(iso);
-  const months = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
-  const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} · ${time}`;
+/** Fecha y hora de una cita. Sin `timeZone` usa la zona del navegador (la de la familia). */
+export function formatDateTime(iso, timeZone) {
+  const date = formatInZone(iso, timeZone, { day: "numeric", month: "short", year: "numeric" });
+  const time = formatInZone(iso, timeZone, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  return `${date} · ${time}`;
+}
+
+/** Igual que formatDateTime, pero siempre en hora de Japón (para el panel de Adriana) */
+export function formatAdminDateTime(iso) {
+  return formatDateTime(iso, BUSINESS_TZ);
 }

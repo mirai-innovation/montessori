@@ -1,64 +1,204 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Header, Footer, Reveal } from "../components/Layout";
+import { JourneyCard } from "../components/Journey";
+import { GiftIcon, PricingGrid } from "../components/Pricing";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
-import { JourneyCard } from "../components/Journey";
-import { journeyPosts } from "../../../shared/content.js";
+import { journeyPosts, testimonials } from "../../../shared/content.js";
 
 const IMAGES = {
   hero: "/assets/hero.jpg",
   about: "/assets/about.jpg",
   concern: "/assets/concern.jpg",
-  galleryJapan: ["/assets/gallery-1.jpg", "/assets/gallery-2.jpg", "/assets/gallery-3.jpg"],
+  galleryJapan: ["/assets/gallery-1.jpg", "/assets/gallery-2.jpg"],
   galleryMusic: "/assets/gallery-music.png",
   gallerySports: "/assets/gallery-sports.png",
-  creds: ["/assets/cred-1.jpg", "/assets/cred-2.jpg"],
 };
+
+const AREAS = [
+  { t: "Autonomía y participación en casa", d: "Ayudar al niño a hacer más por sí mismo y a colaborar en la vida diaria del hogar.", i: '<path d="M9 11V6a3 3 0 0 1 6 0v5M5 11h14l-1 9H6l-1-9z"/>' },
+  { t: "Rutinas y transiciones cotidianas", d: "Mañanas, comidas, siesta, baño y sueño más tranquilos, con menos luchas de poder.", i: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>' },
+  { t: "Ambiente preparado en espacios pequeños", d: "Organizar el hogar para favorecer orden, concentración e independencia, aunque haya poco espacio.", i: '<path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/>' },
+  { t: "Límites respetuosos", d: "Límites firmes y amorosos, acompañando la frustración sin castigos, amenazas ni premios constantes.", i: '<path d="M12 21s-8-4.5-8-10a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 5.5-8 10-8 10z"/>' },
+  { t: "Alimentación, movimiento y lenguaje", d: "Acompañar el desarrollo motor, la comunicación y una relación sana con la comida.", i: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/>' },
+  { t: "Selección de actividades", d: "Qué ofrecer según la edad y las necesidades del niño, sin comprar de más.", i: '<path d="M4 6h16M4 12h10M4 18h7"/>' },
+];
+
+const STEPS = [
+  { t: "Elige el servicio", d: "Selecciona la asesoría que mejor se ajusta a tu momento." },
+  { t: "Completa el cuestionario", d: "Cuéntame sobre tu hijo y tu principal dificultad." },
+  { t: "Realiza el pago", d: "Pago seguro en línea para confirmar tu lugar." },
+  { t: "Agenda fecha y hora", d: "Eliges el horario que mejor te quede." },
+  { t: "Recibe la confirmación", d: "Confirmación con instrucciones para la sesión." },
+  { t: "Tus cambios prioritarios", d: "Tras la sesión recibes tus 3–5 cambios clave y la opción de seguimiento." },
+];
+
+const CREDS = [
+  {
+    src: "/assets/cred-diploma.jpg",
+    alt: "Diploma de Guía Montessori AMI 0–3 en proceso de emisión",
+    title: "Guía Montessori AMI 0–3 · diploma en proceso de emisión",
+    meta: "Vista previa del documento en trámite ante AMI",
+    accent: "var(--clay)",
+  },
+  {
+    src: "/assets/cred-1.jpg",
+    alt: "Certificado AMI Montessori 0–3 Assistants Course Adjunct",
+    title: "AMI Montessori 0–3 Assistants Course Adjunct",
+    meta: "Montessori Stoppani · Tijuana, México · 2024 · Cert. C15708",
+    accent: "var(--sage)",
+  },
+  {
+    src: "/assets/cred-2.jpg",
+    alt: "Constancia del 30° Congreso Internacional Montessori",
+    title: "30° Congreso Internacional Montessori \"Joyful Journey\"",
+    meta: "Mérida, México · 28 horas · 2026",
+    accent: "var(--sage)",
+  },
+];
 
 const posts = journeyPosts.filter((p) => p.published);
 
+function Icon({ paths, size = 24 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <g dangerouslySetInnerHTML={{ __html: paths }} />
+    </svg>
+  );
+}
+
+/** Formulario de la guía gratuita / lista de la escuela; guarda el registro en el servidor */
+function useLeadForm(type) {
+  const [status, setStatus] = useState({ state: "idle", message: "" });
+  const submit = async (data) => {
+    setStatus({ state: "sending", message: "" });
+    try {
+      await api.createLead({ type, ...data });
+      setStatus({ state: "ok", message: "" });
+    } catch (e) {
+      setStatus({ state: "error", message: e.message });
+    }
+  };
+  return [status, submit];
+}
+
+function GuideForm() {
+  const [form, setForm] = useState({ name: "", email: "", childAge: "", mainNeed: "" });
+  const [status, submit] = useLeadForm("guide");
+  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+
+  if (status.state === "ok") {
+    return (
+      <div className="lead-form">
+        <h3>¡Listo, {form.name}!</h3>
+        <p className="lead-ok show">Te enviaré la guía a <b>{form.email}</b>. Revisa también tu carpeta de spam.</p>
+      </div>
+    );
+  }
+
+  return (
+    <form className="lead-form" onSubmit={(e) => { e.preventDefault(); submit(form); }}>
+      <h3>Descarga tu guía gratuita</h3>
+      <div className="field"><label htmlFor="gName">Nombre</label><input id="gName" required value={form.name} onChange={set("name")} placeholder="Tu nombre" /></div>
+      <div className="field"><label htmlFor="gMail">Correo electrónico</label><input id="gMail" type="email" required value={form.email} onChange={set("email")} placeholder="tucorreo@ejemplo.com" /></div>
+      <div className="field"><label htmlFor="gAge">Edad del niño</label><input id="gAge" value={form.childAge} onChange={set("childAge")} placeholder="Ej. 18 meses" /></div>
+      <div className="field"><label htmlFor="gNeed">Principal dificultad actual</label><input id="gNeed" value={form.mainNeed} onChange={set("mainNeed")} placeholder="Ej. berrinches, sueño, límites…" /></div>
+      <button className="btn btn-clay lead-submit" disabled={status.state === "sending"}>
+        {status.state === "sending" ? "Enviando…" : "Descargar guía gratis"}
+      </button>
+      {status.state === "error" && <p className="lead-ok show lead-error">{status.message}</p>}
+    </form>
+  );
+}
+
+function SchoolForm() {
+  const [email, setEmail] = useState("");
+  const [status, submit] = useLeadForm("school");
+
+  if (status.state === "ok") {
+    return <p className="lead-ok show school-ok">¡Gracias por tu interés! Te avisaremos con las primeras novedades de la escuela.</p>;
+  }
+  return (
+    <form className="school-form" onSubmit={(e) => { e.preventDefault(); submit({ email }); }}>
+      <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tucorreo@ejemplo.com" aria-label="Correo electrónico" />
+      <button className="btn btn-clay" disabled={status.state === "sending"}>Unirme a la lista de interés</button>
+      {status.state === "error" && <p className="school-error">{status.message}</p>}
+    </form>
+  );
+}
+
 export default function LandingPage() {
   const { user, isAdmin } = useAuth();
-  const [services, setServices] = useState([]);
   const [quotes, setQuotes] = useState([]);
   const [openQuote, setOpenQuote] = useState(null);
 
   useEffect(() => {
-    api.getContent().then((d) => {
-      setServices(d.services || []);
-      setQuotes(d.quotes || []);
-    }).catch(() => {});
+    api.getContent().then((d) => setQuotes(d.quotes || [])).catch(() => {});
   }, []);
 
   const reserveTo = user ? (isAdmin ? "/admin" : "/citas/nueva") : "/registro";
+  const pricingAction = (plan, className) => (
+    <Link to={reserveTo} className={className}>{plan.firstTimeOnly ? "Agendar mi sesión gratis" : "Reservar →"}</Link>
+  );
 
   return (
     <div className="app-shell">
+      <div className="annbar">
+        <Link to={reserveTo}><GiftIcon /> ¿Primera vez? Tu primera asesoría de 30 min es GRATIS — agéndala aquí</Link>
+      </div>
       <Header />
+
       <section className="hero" style={{ padding: 0 }} id="inicio">
         <div className="wrap hero-grid">
           <Reveal>
             <span className="eyebrow">Acompañamiento Montessori para familias</span>
-            <h1>Los primeros años se viven <em>una sola vez</em></h1>
+            <h1>Montessori para <em>la vida real</em></h1>
             <p className="lead">
-              Acompaño a mamás, papás y cuidadores de niños de 0 a 3 años a entender el desarrollo de su hijo y aplicar Montessori en casa de forma práctica, amorosa y realista.
+              Acompaño a familias con niños de 0 a 3 años a fomentar la autonomía, establecer límites respetuosos y preparar su hogar desde una mirada Montessori.
             </p>
+            <p className="intro">Soy Adriana Villalobos, guía Montessori AMI 0–3 y mamá mexicana criando en Japón.</p>
             <div className="hero-cta">
-              <Link to={reserveTo} className="btn btn-primary">Reservar una sesión</Link>
-              <a href="#asesorias" className="btn btn-ghost">Ver asesorías</a>
+              <Link to={reserveTo} className="btn btn-primary">Reservar asesoría</Link>
+              <a href="#recursos" className="btn btn-ghost">Descargar guía gratuita</a>
             </div>
+            <div className="free-callout"><GiftIcon /> Primera asesoría de 30 min GRATIS · solo primera vez</div>
             <div className="credchips">
-              <span className="chip">Guía AMI Montessori 0–3</span>
-              <span className="chip">Sesiones 100% en línea</span>
+              <span className="chip">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><path d="m9 11 3 3L22 4" /></svg>
+                Guía Montessori AMI 0–3 · diploma en proceso de emisión
+              </span>
+              <span className="chip">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" /></svg>
+                Sesiones 100% en línea
+              </span>
             </div>
           </Reveal>
           <div className="hero-photo reveal in">
-            <div className="framed"><img src={IMAGES.hero} alt="Adriana Villalobos" /></div>
+            <div className="framed"><img src={IMAGES.hero} alt="Adriana acompañando a una niña en una actividad de vida práctica" /></div>
             <div className="float-tag">
               <div className="dot">♥</div>
-              <span>Acompañamiento personalizado para tu familia</span>
+              <span>Soluciones prácticas para hogares reales.</span>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="areas">
+        <div className="wrap">
+          <div className="sec-head reveal in">
+            <span className="eyebrow">Áreas de acompañamiento</span>
+            <h2>En qué te puedo ayudar</h2>
+            <p>Trabajo contigo lo que tu familia necesita hoy, con soluciones concretas y adaptadas a tu casa y tu ritmo.</p>
+          </div>
+          <div className="cards cards-3">
+            {AREAS.map((a) => (
+              <div key={a.t} className="card">
+                <div className="ic"><Icon paths={a.i} /></div>
+                <h3>{a.t}</h3>
+                <p>{a.d}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -129,35 +269,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="asesorias">
-        <div className="wrap">
-          <div className="sec-head reveal in">
-            <span className="eyebrow">Asesorías personalizadas</span>
-            <h2>En qué te puedo acompañar</h2>
-            <p>Áreas concretas de trabajo, pensadas para niños de 0 a 3 años y adaptables a la etapa preescolar. Cada sesión parte de la observación y de lo que tu familia necesita hoy.</p>
-          </div>
-          <div className="cards">
-            {services.map((s) => (
-              <div key={s.t} className="card">
-                <div className="ic">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <g dangerouslySetInnerHTML={{ __html: s.i }} />
-                  </svg>
-                </div>
-                <h3>{s.t}</h3>
-                <p>{s.d}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="ayuda" className="tint">
+      <section id="ayuda">
         <div className="wrap concerns">
           <div className="reveal in">
             <span className="eyebrow">Cómo te ayudo</span>
             <h2 style={{ fontSize: "clamp(1.9rem,3.4vw,2.7rem)", margin: ".7rem 0 1rem" }}>¿Te suena familiar?</h2>
-            <p style={{ color: "var(--muted)", marginBottom: 24 }}>Toca cada frase para ver cómo la abordamos desde una mirada Montessori.</p>
+            <p style={{ color: "var(--muted)", marginBottom: 22 }}>
+              Toca cada frase para ver cómo la abordamos. Detrás de cada conducta casi siempre hay una necesidad que podemos entender.
+            </p>
             <div className="quote-list">
               {quotes.map((q, i) => (
                 <div
@@ -175,12 +294,45 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="concern-photo reveal in">
-            <div className="framed"><img src={IMAGES.concern} alt="Acompañamiento familiar" /></div>
+            <div className="framed"><img src={IMAGES.concern} alt="Adriana trabajando con un niño pequeño" /></div>
           </div>
         </div>
       </section>
 
-      <section id="galeria">
+      <section id="asesorias" className="tint">
+        <div className="wrap">
+          <div className="sec-head center reveal in">
+            <span className="eyebrow">Asesorías Montessori 0–3</span>
+            <h2>Elige el acompañamiento que necesitas</h2>
+            <p>Sesiones individuales en línea. Empezamos por observar a tu hijo y salimos con cambios concretos que puedes aplicar de inmediato.</p>
+          </div>
+          <PricingGrid action={pricingAction} />
+        </div>
+      </section>
+
+      <section id="proceso">
+        <div className="wrap">
+          <div className="sec-head center reveal in">
+            <span className="eyebrow">Cómo funciona</span>
+            <h2>Reservar es muy sencillo</h2>
+            <p>Un proceso claro, de principio a fin, para que llegues a la sesión con todo listo. Si es tu primera vez, tu sesión de 30 min es gratis y omites el pago.</p>
+          </div>
+          <div className="steps">
+            {STEPS.map((s, i) => (
+              <div key={s.t} className="step">
+                <span className="n">{i + 1}</span>
+                <h3>{s.t}</h3>
+                <p>{s.d}</p>
+              </div>
+            ))}
+          </div>
+          <div className="steps-cta">
+            <Link to={reserveTo} className="btn btn-primary">Reservar asesoría</Link>
+          </div>
+        </div>
+      </section>
+
+      <section id="galeria" className="tint">
         <div className="wrap">
           <div className="sec-head reveal in">
             <span className="eyebrow">En acción</span>
@@ -203,14 +355,11 @@ export default function LandingPage() {
               </p>
             </div>
             <div className="gallery gallery-japan">
-              <div className="framed tall">
-                <img src={IMAGES.galleryJapan[0]} alt="Niños en ambiente Montessori en Japón" loading="lazy" />
+              <div className="framed">
+                <img src={IMAGES.galleryJapan[0]} alt="Niña concentrada en una actividad con figuras de fieltro" loading="lazy" />
               </div>
               <div className="framed">
-                <img src={IMAGES.galleryJapan[1]} alt="Guías Montessori en Japón" loading="lazy" />
-              </div>
-              <div className="framed">
-                <img src={IMAGES.galleryJapan[2]} alt="Maestras y niños en Japón" loading="lazy" />
+                <img src={IMAGES.galleryJapan[1]} alt="Adriana junto a dos guías en Japón" loading="lazy" />
               </div>
             </div>
           </div>
@@ -262,34 +411,69 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="formacion" className="tint">
+      <section id="testimonios" className="tint">
         <div className="wrap">
-          <div className="sec-head reveal in">
-            <span className="eyebrow">Formación y certificaciones</span>
-            <h2>Respaldo Montessori internacional</h2>
-            <p>Mi acompañamiento se apoya en formación reconocida por la Association Montessori Internationale (AMI), fundada por Maria Montessori en 1929.</p>
+          <div className="sec-head center reveal in">
+            <span className="eyebrow">Familias acompañadas</span>
+            <h2>Lo que dicen las familias</h2>
           </div>
-          <div className="creds reveal in">
-            {IMAGES.creds.map((src, i) => (
-              <div key={src} className="cred-card">
-                <img src={src} alt={`Certificación ${i + 1}`} loading="lazy" />
-                <div className="meta"><b>Formación AMI</b> · Montessori 0–3</div>
+          <div className="testi-grid">
+            {testimonials.map((t) => (
+              <div key={t.who} className="testi">
+                <div className="stars" aria-label="5 de 5">★★★★★</div>
+                <p>“{t.text}”</p>
+                <div className="who">{t.who}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="reservar">
+      <section id="formacion">
         <div className="wrap">
           <div className="sec-head reveal in">
-            <span className="eyebrow">Agenda tu sesión</span>
-            <h2>Reserva tu asesoría en línea</h2>
-            <p>Crea tu cuenta, completa el perfil de tu familia y elige el día y la hora que mejor te queden.</p>
+            <span className="eyebrow">Formación y certificaciones</span>
+            <h2>Respaldo Montessori internacional</h2>
+            <p>Mi acompañamiento se apoya en formación reconocida por la Association Montessori Internationale (AMI), fundada por Maria Montessori en 1929.</p>
           </div>
-          <div style={{ textAlign: "center" }}>
-            <Link to={reserveTo} className="btn btn-primary">Ir a reservar</Link>
+          <div className="creds creds-3 reveal in">
+            {CREDS.map((c) => (
+              <div key={c.src} className="cred-card">
+                <img src={c.src} alt={c.alt} loading="lazy" />
+                <div className="meta">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c.accent} strokeWidth="2" style={{ flex: "none" }}><circle cx="12" cy="8" r="6" /><path d="M8.21 13.89 7 23l5-3 5 3-1.21-9.12" /></svg>
+                  <div><b>{c.title}</b><br />{c.meta}</div>
+                </div>
+              </div>
+            ))}
           </div>
+        </div>
+      </section>
+
+      <section id="recursos" className="lead-band">
+        <div className="wrap lead-grid">
+          <div className="reveal in">
+            <span className="eyebrow">Recurso gratuito</span>
+            <h2>25 cambios Montessori que puedes hacer en casa sin comprar materiales caros</h2>
+            <p>Una guía práctica para empezar hoy mismo, con ideas sencillas que transforman la vida diaria con tu hijo de 0 a 3 años.</p>
+            <p style={{ fontSize: ".9rem", color: "var(--muted)" }}>
+              Déjame tus datos y te la envío por correo.<br />Blog y más recursos: <b>próximamente</b>.
+            </p>
+          </div>
+          <GuideForm />
+        </div>
+      </section>
+
+      <section id="escuela" className="school">
+        <div className="wrap">
+          <span className="eyebrow">Visión a futuro</span>
+          <h2>Construyendo una escuela Montessori internacional en Osaka</h2>
+          <p>
+            Sueño con una comunidad Montessori internacional que acompañe a niños y familias en un ambiente multicultural y trilingüe.
+            Si te gustaría formar parte, déjame tus datos y te avisaré primero.
+          </p>
+          <span className="coming">Montessori International School Osaka · Coming 2027</span>
+          <SchoolForm />
         </div>
       </section>
 

@@ -16,6 +16,7 @@ const adminLinks = [
   { to: "/admin/agenda", label: "Agenda", icon: "⚙" },
   { to: "/admin/familias", label: "Familias", icon: "👨‍👩‍👧" },
   { to: "/admin/ingresos", label: "Ingresos", icon: "💳" },
+  { to: "/admin/interesados", label: "Interesados", icon: "✉️" },
 ];
 
 export function UserAppShell({ children }) {

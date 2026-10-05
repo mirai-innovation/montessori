@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { PageHeader } from "../../components/AppShell";
-import { StatusBadge, formatDateTime } from "../../components/Layout";
+import { StatusBadge, formatAdminDateTime } from "../../components/Layout";
 
 export default function AdminAppointmentsPage() {
   const [params] = useSearchParams();
@@ -75,7 +75,7 @@ export default function AdminAppointmentsPage() {
             <tbody>
               {appointments.map((a) => (
                 <tr key={a._id}>
-                  <td>{formatDateTime(a.scheduledAt)}</td>
+                  <td>{formatAdminDateTime(a.scheduledAt)}</td>
                   <td>{a.userId?.name}<br /><small>{a.userId?.email}</small></td>
                   <td>{a.serviceType}</td>
                   <td><StatusBadge status={a.status} /></td>

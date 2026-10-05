@@ -1,3 +1,5 @@
+import { tokyoTime } from "./time.js";
+
 export const services = [
   { t: "Ambiente preparado en casa", d: "Organizamos recámara, baño, cocina, comedor y juego para favorecer independencia, orden y concentración.", i: '<path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/>' },
   { t: "Independencia y vida práctica", d: "Vestirse, comer solo, recoger, cocinar o cuidar plantas: ayudar al niño a hacer más por sí mismo, paso a paso.", i: '<path d="M9 11V6a3 3 0 0 1 6 0v5M5 11h14l-1 9H6l-1-9z"/>' },
@@ -43,9 +45,9 @@ export function mergeSlotTimes(...lists) {
   });
 }
 
+/** Horario "HH:mm" de una cita en hora de Japón (la zona de la agenda) */
 export function formatSlotTime(date) {
-  const d = new Date(date);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return tokyoTime(date);
 }
 
 export const monthNames = [
@@ -67,53 +69,67 @@ export const sessionNoteTemplates = [
 
 export const appointmentStatuses = ["solicitada", "confirmada", "completada", "cancelada", "reprogramada"];
 
-/** Planes de reserva / pago (montos en centavos MXN para Stripe) */
-export const bookingPlans = [
+/**
+ * Catálogo de asesorías. Lo usan el landing, /precios, la reserva y Stripe.
+ * Montos en centavos MXN; Stripe Checkout los cobra con price_data (no hace falta crear precios en Stripe).
+ * - firstTimeOnly: solo para familias sin citas previas (se valida en el servidor).
+ * - requestOnly: sin pago en línea; Adriana confirma el precio por correo.
+ */
+export const servicePlans = [
   {
-    id: "credit",
-    name: "Usar mi crédito",
-    mode: "1 sesión de tu paquete",
+    id: "free30",
+    name: "Primera asesoría gratis",
+    desc: "30 minutos para conocernos y darte una primera orientación. Incluye cuestionario previo.",
     priceLabel: "Gratis",
     amountCents: 0,
-    usesCredit: true,
-  },
-  {
-    id: "single",
-    name: "Sesión única",
-    mode: "Pago único",
-    priceLabel: "$850",
-    amountCents: 85000,
-    stripePackage: "single",
     credits: 1,
+    firstTimeOnly: true,
   },
-  {
-    id: "pack4",
-    name: "Paquete de 4",
-    mode: "3 MSI disponibles",
-    priceLabel: "$2,990",
-    amountCents: 299000,
-    stripePackage: "pack4",
-    credits: 4,
-  },
-  {
-    id: "request",
-    name: "Solicitar sin pago en línea",
-    mode: "Adriana confirma por correo",
-    priceLabel: "—",
-    amountCents: 0,
-    requestOnly: true,
-  },
+  { id: "sos", name: "Consulta SOS", desc: "30 minutos para una dificultad específica.", priceLabel: "$690 MXN", amountCents: 69000, credits: 1 },
+  { id: "personal", name: "Asesoría personalizada", desc: "Cuestionario + 60 min + recomendaciones.", priceLabel: "$1,290 MXN", amountCents: 129000, credits: 1, featured: true },
+  { id: "plan", name: "Asesoría con plan", desc: "90 minutos + plan escrito para tu familia.", priceLabel: "$2,200 MXN", amountCents: 220000, credits: 1 },
+  { id: "followup", name: "Seguimiento", desc: "Paquete de tres sesiones para sostener los cambios.", priceLabel: "$3,500 MXN", amountCents: 350000, credits: 3 },
+  { id: "home", name: "Montessori en casa", desc: "Evaluación integral del ambiente familiar.", priceLabel: "$3,900 MXN", amountCents: 390000, credits: 1 },
+  { id: "intl", name: "Internacional", desc: "Para familias fuera de México. Adriana confirma el precio por correo.", priceLabel: "US$95–125", amountCents: 0, credits: 1, requestOnly: true },
+];
+
+export const launchOffer = "Lanzamiento: 10 asesorías fundadoras a $1,290 MXN";
+
+export function getServicePlan(id) {
+  return servicePlans.find((p) => p.id === id) || null;
+}
+
+/** Plan con cobro en línea vía Stripe */
+export function isPaidPlan(plan) {
+  return !!plan && plan.amountCents > 0 && !plan.requestOnly;
+}
+
+/** Opciones del paso "Plan" al reservar */
+export const bookingPlans = [
+  { id: "credit", name: "Usar mi crédito", desc: "1 sesión de tu paquete", priceLabel: "Sin costo", amountCents: 0 },
+  ...servicePlans,
+  { id: "request", name: "Solicitar sin pago en línea", desc: "Adriana confirma por correo", priceLabel: "—", amountCents: 0, requestOnly: true },
 ];
 
 export const planLabels = {
   none: "Sin plan",
+  credit: "Crédito",
+  request: "Solicitud",
+  ...Object.fromEntries(servicePlans.map((p) => [p.id, p.name])),
+  // planes anteriores
   single: "Sesión única",
   pack4: "Paquete 4 sesiones",
   accompany: "Acompañamiento",
   membership: "Membresía",
-  credit: "Crédito",
-  request: "Solicitud",
 };
+
+export const testimonials = [
+  { text: "No dormía sin brazos y las noches eran agotadoras. Ajustamos el ambiente y la rutina, y ahora concilia el sueño con mucha más calma.", who: "M. G. · bebé de 14 meses" },
+  { text: "Había berrinches en cada comida. Trabajamos autonomía y límites respetuosos, y las comidas se volvieron momentos tranquilos.", who: "L. R. · niño de 2 años" },
+  { text: "La casa era un caos y nadie participaba. Preparamos el ambiente en un espacio pequeño y ahora colaboran por sí solos.", who: "J. T. · gemelos de 20 meses" },
+];
+
+export const leadTypes = ["guide", "school"];
 
 /**
  * "Mi camino": experiencias, congresos y formaciones de Adriana.
@@ -128,10 +144,10 @@ export const journeyPosts = [
     published: true,
     title: "De Japón a Mérida: mi primer Congreso Internacional Montessori",
     date: "2026-05",
-    dateLabel: "Mayo 2026",
+    dateLabel: "1–4 de mayo de 2026",
     location: "Mérida, Yucatán, México",
-    tag: "Congreso",
-    cover: "/assets/camino/merida-portada.jpg",
+    tag: "30° Congreso Internacional Montessori",
+    cover: "/assets/gallery-3.jpg",
     coverAlt: "Adriana en el Congreso Internacional Montessori en Mérida",
     excerpt:
       "Viajé de Japón a México por este momento. En mayo asistí a mi primer Congreso Internacional Montessori y tuve la oportunidad de conocer y compartir un momento con Judi Orion.",
@@ -154,6 +170,7 @@ export const journeyPosts = [
       { src: "/assets/camino/merida-judi-orion.jpg", alt: "Adriana con Judi Orion" },
       { src: "/assets/camino/merida-escenario.jpg", alt: "Escenario del Congreso Internacional Montessori" },
       { src: "/assets/camino/merida-recinto.jpg", alt: "Recinto del Congreso en Mérida" },
+      { src: "/assets/cred-2.jpg", alt: "Constancia del 30° Congreso Internacional Montessori \"Joyful Journey\" (28 horas)" },
     ],
   },
   {
