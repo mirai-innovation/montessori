@@ -10,6 +10,7 @@ import {
   sendAppointmentRequestedEmail,
 } from "../config/email.js";
 import { formatMxn } from "../utils/revenue.js";
+import { siteUrl } from "../config/site.js";
 import {
   combineDateAndTime,
   formatAppointmentDate,
@@ -68,8 +69,8 @@ router.post("/checkout", authMiddleware, async (req, res) => {
     mode: "payment",
     customer_email: user.email,
     line_items: [lineItem(plan)],
-    success_url: `${process.env.FRONTEND_URL}/precios?success=1`,
-    cancel_url: `${process.env.FRONTEND_URL}/precios?cancelled=1`,
+    success_url: `${siteUrl()}/precios?success=1`,
+    cancel_url: `${siteUrl()}/precios?cancelled=1`,
     metadata: { userId: user._id.toString(), packageId, source: "precios" },
   });
   res.json({ url: session.url });
@@ -98,8 +99,8 @@ router.post("/booking-checkout", authMiddleware, async (req, res) => {
     mode: "payment",
     customer_email: user.email,
     line_items: [lineItem(plan)],
-    success_url: `${process.env.FRONTEND_URL}/citas/nueva?paid=1&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${process.env.FRONTEND_URL}/citas/nueva?cancelled=1`,
+    success_url: `${siteUrl()}/citas/nueva?paid=1&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${siteUrl()}/citas/nueva?cancelled=1`,
     metadata: {
       userId: user._id.toString(),
       packageId,

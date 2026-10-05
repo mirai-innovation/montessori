@@ -28,6 +28,9 @@ function getAllowedOrigins() {
   if (process.env.FRONTEND_URL) {
     origins.add(process.env.FRONTEND_URL.replace(/\/$/, ""));
   }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    origins.add(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+  }
   if (process.env.VERCEL_URL) {
     origins.add(`https://${process.env.VERCEL_URL}`);
   }
